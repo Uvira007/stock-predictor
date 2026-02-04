@@ -67,8 +67,8 @@ class Settings:
         self.num_gru_layers = num_gru_layers
         self.embedding_dim = embedding_dim
         self.dropout = dropout
-        self.models_dir = models_dir
-        self.data_dir = data_dir
+        self.models_dir = models_dir or MODELS_DIR
+        self.data_dir = data_dir or DATA_DIR
         self.learning_rate = LEARNING_RATE
         self.train_split = TRAIN_SPLIT
         self.yf_period = YF_PERIOD

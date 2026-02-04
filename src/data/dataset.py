@@ -42,7 +42,7 @@ class StockSequenceDataset(Dataset):
             if ticker not in self.ticker_to_idx:
                 continue
             tid = self.ticker_to_idx[ticker]
-            stats = self.stats_per_ticker[ticker]
+            stats = self.stats_per_ticker.get(ticker)
             arr, stats = normalize_ohlcv(df, self.feature_cols, stats)
             self.stats_per_ticker[ticker] = stats
             X, y = build_sequences(arr, self.seq_len, self.predict_days,
