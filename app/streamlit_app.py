@@ -1,5 +1,5 @@
 """Streamlit UI: predict, chart, retrain (with caution)."""
-
+import os
 import sys
 from pathlib import Path
 
@@ -12,8 +12,11 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Backend API base URL (run scripts/run_api.py)
-API_BASE = "http://127.0.0.1:8000"
+# Backend API URL: SET API_BASE_URL in streamlit Cloud to your Render API URL
+API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+# Longer timeouts for hosted API to support cold starts (e.g. Render free tier)
+API_TIMEOUT_GET = int(os.environ.get("API_TIMEOUT_GET", "60"))
+API_TIMEOUT_POST = int(os.environ.get("API_TIMEOUT_POST", "120"))
 
 
 def api_get(path: str):
