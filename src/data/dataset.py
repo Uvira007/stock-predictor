@@ -61,5 +61,5 @@ class StockSequenceDataset(Dataset):
             torch.tensor(y, dtype = torch.float32)
         )
 
-    def __getstats__(self) -> Dict[str, Dict]:
+    def get_stats(self) -> Dict[str, Dict]:
         return self.stats_per_ticker
