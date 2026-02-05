@@ -1,0 +1,20 @@
+# Render blueprint: Stock GRU Predictor API
+# Deploy from Render Dashboard: New > Blueprint, connect repo, select this file.
+# Ensure models/ contains model.pt, config.json, normalize_stats.json (train locally and commit if needed)
+
+services:
+  - type: web
+    name: stock-gru-api
+    runtime: python
+    region: oregon
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      # Optional: increase timeout for cold starts
+      - key: WEB_CONCURRENCY
+        value: "1"
+
