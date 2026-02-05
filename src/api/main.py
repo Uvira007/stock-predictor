@@ -6,6 +6,7 @@ from typing import List
 
 import torch
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from ..config import get_settings
@@ -51,6 +52,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Stock GRU Predictor API", lifespan=lifespan)
 
+
+# Allow streamlit community cloud and local dev to call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8051"],
+    allow_origin_regex=r"https?://.*\.streamlit\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 # --- Request/Response schemas ---
 

@@ -1,0 +1,21 @@
+{
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "NVDA",
+    "TSLA",
+    "JPM",
+    "V",
+    "JNJ"
+  ],
+  "seq_len": 60,
+  "predict_days": 21,
+  "num_features": 5,
+  "hidden_size": 64,
+  "num_gru_layers": 2,
+  "embedding_dim": 16,
+  "dropout": 0.2
+}

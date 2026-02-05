@@ -1,6 +1,3 @@
-models/
-*.pt
-*.onnx
 __pycache__/
 *.pyc
 .venv/
