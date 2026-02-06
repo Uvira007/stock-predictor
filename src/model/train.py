@@ -173,6 +173,103 @@ def train_model(
         "tickers": tickers,
     }
 
+def finetune_model(
+        period: str = "6mo",
+        batch_size: int | None = None,
+        epochs: int | None = None,
+        lr: float | None = None,
+        train_split: float | None = None,
+        device: torch.device | None = None,
+        models_dir: Path | None = None,
+) -> Dict[str, Any]:
+    """
+    Load existing model, freeze ticker_ember and gru weights, fine-tune only fc on recent data.
+    Uses saved normalize_stats so inputs match the base model. Saves updated weights.
+    Returns dict with paths and history
+    """
+    settings = get_settings()
+    models_dir = Path(models_dir or settings.models_dir)
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    batch_size = batch_size or getattr(settings, "batch_size", 32)
+    epochs = epochs or 15
+    lr = lr or 1e-4
+    train_split = train_split or getattr(settings, "train_split", .85)
+
+    if not (models_dir / "model.pt").exists():
+        raise FileNotFoundError("No existing model.pt found. Train a model first")
+    
+    model, config, stats = load_model(models_dir=models_dir, device=device)
+    model.train() # set the model to training mode
+
+    # Freeze ticker_embed and gru; train only fc
+    for p in model.ticker_embed.parameters():
+        p.requires_grad = False
+    for p in model.gru.parameters():
+        p.requires_grad = False
+
+    tickers = config["tickers"]
+    seq_len = config["seq_len"]
+    predict_days = config["predict_days"]
+
+    dataset = StockSequenceDataset(
+        tickers=tickers,
+        seq_len=seq_len,
+        predict_days=predict_days,
+        period=period,
+        normalize_stats=stats,
+    )
+    if len(dataset) == 0:
+        raise ValueError(
+            f"No samples for period {period}. Need enough data for seq_len={seq_len} + predict_days={predict_days}."
+                         )
+    
+    n = len(dataset)
+    n_train = int(n * train_split)
+    n_val = n- n_train
+    train_ds, val_ds = random_split(dataset, [n_train, n_val])
+    train_loader = DataLoader[Any](train_ds, batch_size=batch_size, shuffle=True,
+                                   num_workers=0)
+    val_loader = DataLoader[Any](val_ds, batch_size=batch_size, shuffle=False,
+                                 num_workers=0)
+    
+    optimizer = torch.optim.Adam(model.fc.parameters(), lr=lr)
+    criterion = nn.MSELoss()
+
+    history = {"train_loss": [], "val_loss": []}
+    for ep in range(epochs):
+        tl = train_one_epoch(model, train_loader, optimizer, criterion, device)
+        vl = validate(model, val_loader, criterion, device)
+        history["train_loss"].append(tl)
+        history["val_loss"].append(vl)
+        if (ep + 1) % 5 == 0 or ep == 0:
+            print(f"Finetune Epoch {ep+1}/{epochs}  train loss={tl:.6f} val loss={vl:.6f}")
+
+    model_path = models_dir / "model.pt"
+    config_path = models_dir / "config.json"
+    stats_path = models_dir / "normalize_stats.json"
+
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "config": config,
+        },
+        model_path
+    )
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
+    with open(stats_path, "w") as f:
+        json.dump(stats, f, indent=2)
+
+    return{
+        "model_path": str(model_path),
+        "config_path": str(config_path),
+        "stats_path": str(stats_path),
+        "history": history,
+        "tickers": tickers,
+        "period": period
+    }
+
+
 
 def load_model(
     models_dir: Path | str | None = None,
