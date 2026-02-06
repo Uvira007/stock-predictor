@@ -44,6 +44,17 @@ def _clear_model_cache():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Debug: log git remotes (e.g. on Render; remove after checking)
+    try:
+        r = subprocess.run(
+            ["git", "remote", "-v"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).resolve().parents[2],
+        )
+        print("[startup] git remote -v:", r.stdout.strip() or r.stderr or "not a git repo")
+    except Exception as e:
+        print("[startup] git remote check failed:", e)
     # Startup: optionally load model if exists
     _get_model()
     yield
@@ -213,3 +224,4 @@ def model_status():
         "model_path": str(models_dir / "model.pt") if has_model else None,
         "has_checkpoint": has_model,
     }
+
