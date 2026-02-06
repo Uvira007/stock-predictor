@@ -10,8 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from ..config import get_settings
-from ..model.train import load_model, train_model
+from ..model.train import load_model, train_model, finetune_model
 from ..model.inference import predict as run_predict
+from ..utils.github_push import push_models_to_github
 
 
 # Global model cache
@@ -90,6 +91,17 @@ class RetrainResponse(BaseModel):
     job_started: bool
 
 
+class FineTuneRequest(BaseModel):
+    period: str = Field(default="6mo", description="Yahoo Finance period for fine-tuning (e.g. 5y)")
+    epochs: int = Field(default=15, ge=1, le=100)
+    lr: float = Field(default=1e-4, gt=0, description="Learning rate for fine-tuning")
+
+
+class FineTuneResponse(BaseModel):
+    message: str
+    job_started: bool
+
+
 # --- Endpoints ---
 
 
@@ -139,12 +151,55 @@ def retrain(req: RetrainRequest, background_tasks: BackgroundTasks):
         )
         # Reload into cache
         _get_model()
+        
+        # Push the updated model to GitHub
+        try:
+            ok, message = push_models_to_github(commit_message="Update Model (retrain)")
+            print(f"Push to GitHub after retraining: {message}")
+        except Exception as e:
+            print(f"Push to GitHub failed: {e}")                   
 
     background_tasks.add_task(_train)
     return RetrainResponse(
         message="Retrain started in background. This may take several minutes. Model will be reloaded when done.",
         job_started=True,
     )
+
+
+@app.post("/finetune", response_model=FineTuneResponse)
+def finetune(req: FineTuneRequest, background_tasks: BackgroundTasks):
+    """
+    Fine-tune the loaded model on recent data (e.g. last 6 months)
+    Freezes ticker_embed and gru weights; trained only for the fc head.
+    Requires an existing model
+    """
+    settings = get_settings()
+    if not(Path(settings.models_dir) / "model.pt").exists():
+        raise HTTPException(
+            status_code=503,
+            detail="No model to fine-tune. train a model first (See /retrain or scripts/train_model.py).",
+        )
+    
+    def _run_finetune():
+        _clear_model_cache()
+        finetune_model(
+            period=req.period,
+            epochs=req.epochs,
+            lr=req.lr
+        )
+        _get_model()
+
+        try:
+            ok, message = push_models_to_github(commit_message="Update model (finetune)")
+            print(f" Pushed to github after finetuning: {message}")
+        except Exception as e:
+            print(f"Push to github failed: {e}")
+    
+    background_tasks.add_task(_run_finetune)
+    return FineTuneResponse(
+        message=f"Fine-tuning started in background (period={req.period}). Model will be reloaded when done.",
+        job_started=True
+        )
 
 
 @app.get("/model/status")
