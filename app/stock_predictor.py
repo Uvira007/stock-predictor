@@ -110,6 +110,14 @@ def _render_retrain_section():
             except requests.RequestException as e:
                 st.sidebar.error(str(e))
 
+    st.sidebar.caption("Fine-tune: upadte head on last 6 months (faster).")
+    if st.sidebar.button("Fine-tune (6 months)"):
+        with st.sidebar.spinner("Starting fine-tuning..."):
+            try:
+                api_post("/finetune", json={"period": "6mo", "epochs":15, "lr": 1e-4})
+                st.sidebar.success("Fine-tuning started in background. Model will reload when done.")
+            except requests.RequestException as e:
+                st.sidebar.error(e)
 
 if __name__ == "__main__":
     main()
