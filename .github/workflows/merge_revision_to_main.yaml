@@ -1,0 +1,15 @@
+# Merge revision/model-update-* branches into main and delete those branches.
+# Runs at the top of every hour (e.g. 0:00, 1:00.. UTC)
+# TO change the schedule edit the cron (e.g. "0 3 * * *" = 3:00 AM UTC)
+name: Merge revision branches to main
+
+on:
+  schedule:
+    - cron: "0 * * * *" # Runs every hour
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # Jobs to be added
