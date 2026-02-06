@@ -1,0 +1,10 @@
+# DO NOT IGNORE .git
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.gitignore
+.github/
+README.md
+*.md
