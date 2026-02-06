@@ -5,11 +5,64 @@ name: Merge revision branches to main
 
 on:
   schedule:
-    - cron: "0 * * * *" # Runs every hour
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  # Jobs to be added
+  merge-to-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set git config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch all branches
+        run: git fetch origin
+
+      - name: List revision branches
+        id: list
+        run: |
+          REVISION_BRANCHES=$(git branch -r --list 'origin/revision/fine-tune-update-*' | sed 's|^[[:space:]]*origin/||' | tr -d ' ' | sort)
+          if [ -z "$REVISION_BRANCHES" ]; then
+            echo "branches=" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          else
+            echo "branches<<EOF" >> $GITHUB_OUTPUT
+            echo "$REVISION_BRANCHES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "count=$(echo "$REVISION_BRANCHES" | wc -l)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Merge revision branches into main and delete them
+        if: steps.list.outputs.count != '0'
+        run: |
+          MAIN_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git pull origin $MAIN_BRANCH --no-edit || true
+
+          for branch in ${{ steps.list.outputs.branches }}; do
+            [ -z "$branch" ] && continue
+            echo "Merging $branch into $MAIN_BRANCH..."
+            git merge "origin/$branch" -m "Merge $branch into $MAIN_BRANCH (nightly)" --no-edit || true
+          done
+
+          git push origin $MAIN_BRANCH
+
+          for branch in ${{ steps.list.outputs.branches }}; do
+            [ -z "$branch" ] && continue
+            echo "Deleting remote branch $branch..."
+            git push origin --delete "$branch" || true
+          done
+
+      - name: No revision branches
+        if: steps.list.outputs.count == '0'
+        run: echo "No revision/fine-tune-update-* branches to merge."
