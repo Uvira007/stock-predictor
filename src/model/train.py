@@ -191,7 +191,7 @@ def finetune_model(
     models_dir = Path(models_dir or settings.models_dir)
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_size = batch_size or getattr(settings, "batch_size", 32)
-    epochs = epochs or 15
+    epochs = epochs or 1
     lr = lr or 1e-4
     train_split = train_split or getattr(settings, "train_split", .85)
 

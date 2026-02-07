@@ -58,13 +58,13 @@ def push_models_to_github(
      
     # Resolve default branch (man or master)
     refs_resp = requests.get(
-        f"{GITHUB_API}/repos/{owner}/{repo}/git/refs/head/main",
+        f"{GITHUB_API}/repos/{owner}/{repo}/git/ref/head/main",
         headers = headers,
         timeout=30,
     )
     if refs_resp.status_code == 404:
         refs_resp = requests.get(
-            f"{GITHUB_API}/repos/{owner}/{repo}/git/refs/head/master",
+            f"{GITHUB_API}/repos/{owner}/{repo}/git/ref/head/master",
             headers = headers,
             timeout=30,
         )
