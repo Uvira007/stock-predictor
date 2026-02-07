@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
 
-import subprocess
 import torch
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,17 +44,6 @@ def _clear_model_cache():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Debug: log git remotes (e.g. on Render; remove after checking)
-    try:
-        r = subprocess.run(
-            ["git", "remote", "-v"],
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).resolve().parents[2],
-        )
-        print("[startup] git remote -v:", r.stdout.strip() or r.stderr or "not a git repo")
-    except Exception as e:
-        print("[startup] git remote check failed:", e)
     # Startup: optionally load model if exists
     _get_model()
     yield

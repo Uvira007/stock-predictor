@@ -1,12 +1,17 @@
-"""Push model files to a new GitHub Branch after fine-tune or retrain."""
+"""Push model files to a new GitHub Branch after fine-tune or retrain using github API."""
 
 import os
-import re
-import subprocess
+import base64
 from datetime import datetime, timezone
 from pathlib import Path
 
-from typing import Optional
+from typing import Optional, Any
+
+import requests
+
+# Model files to push (only those present in models_dir/)
+MODEL_FILES = ("model.pt", "config.json", "normalize_stats.json")
+GITHUB_API = "https://api.github.com"
 
 def push_models_to_github(
         models_dir: Optional[Path] = None,
@@ -14,14 +19,30 @@ def push_models_to_github(
         branch_prefix: str = "revision/model-update",
 ) -> tuple[bool, str]:
     """
-    Add model files, create a new branch, commit, and push to origin.
+    Create a new branch and push model files using the GitHub Contents API.
     Branch name: {branch_prefix}-YYYYMMDD-HHMMSS (e.g. revision/model-update-20260205-143022)
-    Requires env: GITHUB_TOKEN (write access). Optional: GIT_USER_NAME, GIT_EMAIL.
+    Requires env: GITHUB_TOKEN (write access), GITHUB_REPOSITORY (owner/repo e.g., Uvira007/stock-predictor).
+    Optional: MODELS_REPO_PATH (Path in repo for model files, default "models");
+              GIT_USER_NAME, GIT_EMAIL (or GIT_USER_EMAIL) for commit author/committer (e.g. render_bot).
     Returns (success, message).
     """
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return False, "GITHUB TOKEN not set, skip model update to github"
+    
+    repo_spec = os.environ.get("GITHUB_REPOSITORY")
+    if not repo_spec or "/" not in repo_spec:
+        return False, "GITHUB_REPOSITORY not set or invalid (use owner/repo_name)"
+    
+    owner, repo = repo_spec.strip().split("/", 1)
+    repo_path = (os.environ.get("MODELS_REPO_PATH") or "models").strip().rstrip("/")
+    
+    # Optional: commit autho/committer (e.g. GIT_USER_NAME=render_bot, GIT_EMAIL=render@users.noreply.github.com)
+    git_name = os.environ.get("GIT_USER_NAME", "").strip()
+    git_email = (os.environ.get("GIT_EMAIL") or os.environ.get("GIT_USER_EMAIL") or "").strip()
+    author_committer = None
+    if git_name and git_email:
+        author_committer = {"name": git_name, "email": git_email}    
     
     if models_dir is None:
         from ..config import get_settings
@@ -30,91 +51,79 @@ def push_models_to_github(
     if not models_dir.is_dir():
         return False, f"models_dir does not exist: {models_dir}"
     
-    try:
-        repo_root = Path(
-            subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"],
-                capture_output= True,
-                text=True,
-                check=True,
-                cwd=models_dir.parent,
-            ).stdout.strip()
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+     
+    # Resolve default branch (man or master)
+    refs_resp = requests.get(
+        f"{GITHUB_API}/repos/{owner}/{repo}/git/refs/head/main",
+        headers = headers,
+        timeout=30,
+    )
+    if refs_resp.status_code == 404:
+        refs_resp = requests.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/git/refs/head/master",
+            headers = headers,
+            timeout=30,
         )
-    except(subprocess.CalledProcessError, FileNotFoundError) as e:
-        return False, f"Not a git repo or git unavailable: {e}"
-    
-    try:
-        models_rel = models_dir.relative_to(repo_root)
-    except ValueError:
-        return False, f"models_dir {models_dir} is not under repo root {repo_root}"
-    
-    # Git config for commit
-    for key, env_key in (("user.name", "GIT_USER_NAME"), ("user.email", "GIT_EMAIL")):
-        val = os.environ.get(env_key)
-        if val:
-            subprocess.run(
-                ["git", "config", key, val],
-                capture_output=True,
-                check=True,
-                cwd=repo_root,
-            )
-    
-    add_path = str(models_rel).replace("\\", "/")
-    subprocess.run(
-        ["git", "add", add_path],
-        capture_output=True,
-        check=True,
-        cwd=repo_root,
-    )
-    status = subprocess.run(
-        ["git","status", "--short"],
-        capture_output=True,
-        check=True,
-        cwd=repo_root,
-    )
-    if not status.stdout.strip():
-        return True, "No model file changes; nothing to push"
+    if refs_resp.status_code != 200:
+        return False, f"Could not get default branch: {refs_resp.status_code} {refs_resp.text[:200]}"
+    main_sha = refs_resp.json()["object"]["sha"]
     
     branch_name = f"{branch_prefix}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
-    subprocess.run(
-        ["git", "checkout", "-b", "branch_name"],
-        capture_output=True,
-        check=True,
-        cwd=repo_root,
-    )
-    subprocess.run(
-        ["git", "commit", "-m", commit_message],
-        capture_output=True,
-        check=True,
-        cwd=repo_root,
-    )
-
-    # Build push URL with token (supports both https and @git origins)
-    raw_url = subprocess.run(
-        ["git", "remote", "get-url", "origin"],
-        capture_output=True,
-        check=True,
-        cwd=repo_root,
-    ).stdout
-    if not raw_url or not raw_url.strip():
-        return False, "Could not get origin remote URL"
-    stripped_url = raw_url.strip()
-    remote_url: str = stripped_url if isinstance(stripped_url, str) else bytes(stripped_url).decode()
-    # https:/github.com/owner/repo.git or git@github.com:owner/repo.git
-    match = re.match(r"(?:https://github\.com/|git@github\.com:)([^/]+/[^/\s]+?)(?:\.git)?$", remote_url)
-    if not match:
-        return False, f"Could not parse the origin URL: {remote_url}"
-    repo_path = match.group(1).rstrip(".git")
-    push_url = f"https://x-access-token:{token}@github.com/{repo_path}.git"
-
-    push_result = subprocess.run(
-        ["git", "push", push_url, "HEAD", branch_name],
-        capture_output=True,
-        check=True,
-        cwd=repo_root,
-    )
-
-    if push_result.returncode !=0:
-        return False, f"git push failed: {push_result.stderr or push_result.stdout}"
     
-    return True, f"Pushed to Branch {branch_name}"
+    create_refs_resp = requests.post(
+        f"{GITHUB_API}/repos/{owner}/{repo}/git/refs",
+        headers = headers,
+        json={"ref":f"refs/heads/{branch_name}", "sha": main_sha},
+        timeout=30,
+    )
+    if create_refs_resp.status_code not in (200, 201):
+        return False, f"Could not create branch {branch_name}: {create_refs_resp.status_code} {create_refs_resp.text[:200]}"
+    
+    # Upload each model file that exists
+    uploaded = 0
+    for filename in MODEL_FILES:
+        path = models_dir / filename
+        if not path.is_file():
+            continue
+        content = path.read_bytes()
+        content_b64 = base64.b64encode(content).decode("ascii")
+        file_path_in_repo = f"{repo_path}/{filename}"
+
+    # Get Current file sha on the new branch (for update); 404 means create
+        get_resp = requests.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/contents/{file_path_in_repo}",
+            headers = headers,
+            params = {"ref": branch_name},
+            timeout=30,
+        )
+        sha = get_resp.json().get(" =sha") if get_resp.status_code == 200 else None
+
+        put_payload: dict[str, Any] = {
+            "message": commit_message,
+            "content": content_b64,
+            "branch": branch_name,
+        }
+        if sha:
+            put_payload["sha"] = sha
+        if author_committer:
+            put_payload["author"] = author_committer
+            put_payload["committer"] = author_committer
+
+        put_resp = requests.put(
+        f"{GITHUB_API}/repos/{owner}/{repo}/contents/{file_path_in_repo}",
+        headers = headers,
+        json=put_payload,
+        timeout=60,
+            )
+        if put_resp.status_code not in (200, 201):
+            return False, f"Could not upload {filename}: {put_resp.status_code} {put_resp.text[:200]}"
+        uploaded += 1
+    
+    if uploaded == 0:
+        return False, f"No model files to push (None of model.pt, config.json, normalize_stats.json found)"
+
+    return True, f"Pushed {uploaded} file(s) to branch {branch_name} "

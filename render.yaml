@@ -1,18 +1,21 @@
 # Render blueprint: Stock GRU Predictor API
 # Deploy from Render Dashboard: New > Blueprint, connect repo, select this file.
 # Ensure models/ contains model.pt, config.json, normalize_stats.json (train locally and commit if needed)
-
+# Push after finetune/retrain using github API; set GITHUB_TOKEN and GITHUB_REPOSITORY in render env.
 services:
   - type: web
     name: stock-gru-api
-    runtime: docker
+    runtime: python
     region: oregon
 
-    #Docker file in repo root
-    dockerfilePath: ./dockerfile
-    dockerContext: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+
+   
 
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
       # Optional: increase timeout for cold starts
       - key: WEB_CONCURRENCY
         value: "1"
