@@ -52,7 +52,7 @@ jobs:
           for branch in ${{ steps.list.outputs.branches }}; do
             [ -z "$branch" ] && continue
             echo "Merging $branch into $MAIN_BRANCH..."
-            git merge "origin/$branch" -m "Merge $branch into $MAIN_BRANCH (nightly)" --no-edit || true
+            git merge "origin/$branch" -m "Merge $branch into $MAIN_BRANCH (hourly)" --no-edit || true
           done
 
           git push origin $MAIN_BRANCH

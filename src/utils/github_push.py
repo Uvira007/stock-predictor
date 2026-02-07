@@ -16,11 +16,11 @@ GITHUB_API = "https://api.github.com"
 def push_models_to_github(
     models_dir: Optional[Path] = None,
     commit_message: str = "Update model (finetune/retrain)",
-    branch_prefix: str = "revision/fine-tune-update",
+    branch_prefix: str = "revision/model-update",
 ) -> tuple[bool, str]:
     """
     Create a new branch and push model files using the GitHub Contents API.
-    Branch name: {branch_prefix}-YYYYMMDD-HHMMSS (e.g. revision/fine-tune-update-20250204-143022).
+    Branch name: {branch_prefix}-YYYYMMDD-HHMMSS (e.g. revision/model-update-20250204-143022).
     Requires env: GITHUB_TOKEN (repo scope), GITHUB_REPOSITORY (owner/repo, e.g. Uvira007/stock-predictor).
     Optional: MODELS_REPO_PATH (path in repo for model files, default "models");
               GIT_USER_NAME, GIT_EMAIL (or GIT_USER_EMAIL) for commit author/committer (e.g. Render Bot).
