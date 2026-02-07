@@ -5,7 +5,7 @@ name: Merge revision branches to main
 
 on:
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
       - name: List revision branches
         id: list
         run: |
-          REVISION_BRANCHES=$(git branch -r --list 'origin/revision/fine-tune-update-*' | sed 's|^[[:space:]]*origin/||' | tr -d ' ' | sort)
+          REVISION_BRANCHES=$(git branch -r --list 'origin/revision/model-update-*' | sed 's|^[[:space:]]*origin/||' | tr -d ' ' | sort)
           if [ -z "$REVISION_BRANCHES" ]; then
             echo "branches=" >> $GITHUB_OUTPUT
             echo "count=0" >> $GITHUB_OUTPUT
