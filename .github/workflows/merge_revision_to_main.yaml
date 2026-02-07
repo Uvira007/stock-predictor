@@ -65,4 +65,4 @@ jobs:
 
       - name: No revision branches
         if: steps.list.outputs.count == '0'
-        run: echo "No revision/fine-tune-update-* branches to merge."
+        run: echo "No revision/model-update-* branches to merge."
