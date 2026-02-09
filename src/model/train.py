@@ -1,7 +1,6 @@
 """Training loop and model persistence (load/save with config and stats)."""
 
 import json
-
 from pathlib import Path
 from typing import Any, Dict, List
 

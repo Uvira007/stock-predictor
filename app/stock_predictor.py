@@ -2,6 +2,7 @@
 import os
 import sys
 from pathlib import Path
+from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -48,6 +49,21 @@ def main():
         st.warning("No trained model found. Train once: `python scripts/train_model.py` from the stock_predictor folder, then restart the API.")
     else:
         st.success("Model loaded and ready.")
+        version_info = status.get("model_version")
+        if version_info:
+            try:
+                last_updated = version_info.get("last_updated", "")
+                if last_updated:
+                    dt = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+                    last_updated_display = dt.strftime("%b %d, %Y at %H:%M UTC")
+                else:
+                    last_updated_display = last_updated
+                version = version_info.get("version", "-")
+                updated_by = version_info.get("updated_by", "")
+                st.caption(f"**Version** {version} Last updated: {last_updated_display}" + (f" ({updated_by})" if updated_by else ""))
+            except (ValueError, TypeError):
+                st.caption(f"Version {version_info.get('version', '-')} {version_info.get('last_updated', '')}")
+
 
     # Tickers from API
     try:
