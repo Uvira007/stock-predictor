@@ -8,8 +8,10 @@ from typing import Any, Optional
 
 import requests
 
+from .model_version import MODEL_VERSION_FILENAME
+
 # Model files to push (only those present in models_dir)
-MODEL_FILES = ("model.pt", "config.json", "normalize_stats.json")
+MODEL_FILES = ("model.pt", "config.json", "normalize_stats.json", MODEL_VERSION_FILENAME)
 GITHUB_API = "https://api.github.com"
 
 

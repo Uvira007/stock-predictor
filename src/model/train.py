@@ -1,6 +1,7 @@
 """Training loop and model persistence (load/save with config and stats)."""
 
 import json
+
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -10,6 +11,7 @@ from torch.utils.data import DataLoader, random_split
 
 from ..config import get_settings, DEFAULT_TICKERS
 from ..data import StockSequenceDataset
+from ..utils.model_version import write_model_version
 from .network import StockGRUModel
 
 
@@ -74,6 +76,7 @@ def train_model(
     device: torch.device | None = None,
     models_dir: Path | None = None,
     period: str | None = None,
+    updated_by: str = "train",
 ) -> Dict[str, Any]:
     """
     Build dataset, train StockGRUModel, save .pt + config + stats.
@@ -164,6 +167,7 @@ def train_model(
         json.dump(config, f, indent=2)
     with open(stats_path, "w") as f:
         json.dump(stats, f, indent=2)
+    write_model_version(models_dir, updated_by)
 
     return {
         "model_path": str(model_path),
@@ -259,6 +263,7 @@ def finetune_model(
         json.dump(config, f, indent=2)
     with open(stats_path, "w") as f:
         json.dump(stats, f, indent=2)
+    write_model_version(models_dir, "finetune")
 
     return{
         "model_path": str(model_path),

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from ..config import get_settings
 from ..model.train import load_model, train_model, finetune_model
 from ..model.inference import predict as run_predict
+from ..utils.model_version import get_model_version
 from ..utils.github_push import push_models_to_github
 
 
@@ -148,6 +149,7 @@ def retrain(req: RetrainRequest, background_tasks: BackgroundTasks):
             tickers=req.tickers,
             epochs=req.epochs,
             period=req.period,
+            updated_by="retrain"
         )
         # Reload into cache
         _get_model()
@@ -204,13 +206,15 @@ def finetune(req: FineTuneRequest, background_tasks: BackgroundTasks):
 
 @app.get("/model/status")
 def model_status():
-    """Whether a trained model is loaded and path."""
+    """Whether a trained model is loaded and path and version metadata (version, last_updated, updated_by)."""
     settings = get_settings()
     models_dir = Path(settings.models_dir)
     has_model = (models_dir / "model.pt").exists()
+    version_info = get_model_version(models_dir)
     return {
         "model_loaded": "model" in _model_cache,
         "model_path": str(models_dir / "model.pt") if has_model else None,
         "has_checkpoint": has_model,
+        "model_version": version_info,
     }
 
