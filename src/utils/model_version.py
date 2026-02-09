@@ -42,7 +42,7 @@ def write_model_version(models_dir: Path, updated_by: str) -> None:
         "updated_by": updated_by,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indext = 2))
+    path.write_text(json.dumps(data, indent = 2))
 
 
 def get_model_version(models_dir: Optional[Path]=None) -> Optional[Dict[str, Any]]:
