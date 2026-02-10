@@ -33,8 +33,8 @@ def api_post(path: str, json: dict):
 
 
 def main():
-    st.set_page_config(page_title="Stock GRU Predictor", page_icon="📈", layout="centered")
-    st.title("Stock GRU Predictor")
+    st.set_page_config(page_title="Stock Predictor", page_icon="📈", layout="centered")
+    st.title("Stock Predictor")
     st.caption("Multivariate GRU model · Yahoo Finance · Next N days close")
 
     # Check API and model status
