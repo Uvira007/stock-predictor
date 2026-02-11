@@ -1,7 +1,7 @@
 {
-  "major_version": 1,
-  "minor_version": 1,
+  "version_major": 1,
+  "version_minor": 1,
   "version": "1.1",
-  "last_updated": "2026-02-10T08:55:20Z",
+  "last_updated": "2026-02-11T06:12:08Z",
   "updated_by": "finetune"
 }
