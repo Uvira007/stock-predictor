@@ -35,8 +35,8 @@ def write_model_version(models_dir: Path, updated_by: str) -> None:
     elif updated_by == "finetune":
         minor += 1
     data = {
-        "major_version": major,
-        "minor_version": minor,
+        "version_major": major,
+        "version_minor": minor,
         "version": f"{major}.{minor}",
         "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "updated_by": updated_by,
